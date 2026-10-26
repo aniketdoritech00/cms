@@ -1,20 +1,19 @@
 package in.doritech.cms.service;
 
-import java.util.List;
-
 import in.doritech.cms.request.RoleRequest;
 import in.doritech.cms.util.ApiResponse;
 
-
 public interface RoleService {
 
-    ApiResponse createRole(RoleRequest request);
+	ApiResponse createRole(RoleRequest request);
 
-    ApiResponse getRoleById(Long id);
+	ApiResponse getRoleById(Long id);
 
-    List<ApiResponse> getAllRoles();
+	ApiResponse getAllRoles();
 
-    ApiResponse updateRole(Long id, RoleRequest request);
+	ApiResponse updateRole(Long id, RoleRequest request);
 
-    ApiResponse deleteRole(Long id);
+	ApiResponse deleteRole(Long id);
+
+	ApiResponse getAllRolesWithPagination(int page, int size);
 }

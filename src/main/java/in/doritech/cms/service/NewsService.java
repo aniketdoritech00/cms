@@ -2,6 +2,8 @@ package in.doritech.cms.service;
 
 import java.util.List;
 
+import org.springframework.web.multipart.MultipartFile;
+
 import in.doritech.cms.request.NewsRequest;
 import in.doritech.cms.util.ApiResponse;
 
@@ -11,13 +13,17 @@ public interface NewsService {
 
 	ApiResponse getNewsById(Long id);
 
-	List<ApiResponse> getAllNews();
+	ApiResponse getAllNews();
 
-	List<ApiResponse> getNewsByStatus(String status);
+	ApiResponse getNewsByStatus(String status);
 
 	ApiResponse updateNews(Long id, NewsRequest request);
 
 	ApiResponse deleteNews(Long id);
 
 	ApiResponse publishNews(Long id);
+
+	ApiResponse getAllNewsWithPagination(int page, int size);
+
+	ApiResponse createNewsWithImages(NewsRequest request, List<MultipartFile> images);
 }

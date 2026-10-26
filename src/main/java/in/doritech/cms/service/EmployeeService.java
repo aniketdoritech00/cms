@@ -1,7 +1,5 @@
 package in.doritech.cms.service;
 
-import java.util.List;
-
 import in.doritech.cms.request.EmployeeRequest;
 import in.doritech.cms.util.ApiResponse;
 
@@ -11,9 +9,11 @@ public interface EmployeeService {
 
 	ApiResponse getEmployeeById(Long id);
 
-	List<ApiResponse> getAllEmployees();
+	ApiResponse getAllEmployees();
 
 	ApiResponse updateEmployee(Long id, EmployeeRequest request);
 
 	ApiResponse deleteEmployee(Long id);
+
+	ApiResponse getAllEmployeesWithPagination(int page, int size);
 }

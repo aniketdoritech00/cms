@@ -157,4 +157,14 @@ public class News {
     public void setMediaFiles(Set<MediaFile> mediaFiles) {
         this.mediaFiles = mediaFiles;
     }
+
+	@Override
+	public String toString() {
+		return "News [newsId=" + newsId + ", title=" + title + ", slug=" + slug + ", summary=" + summary + ", content="
+				+ content + ", status=" + status + ", publishedAt=" + publishedAt + ", createdAt=" + createdAt
+				+ ", updatedAt=" + updatedAt + ", author=" + author + ", categories=" + categories + ", mediaFiles="
+				+ mediaFiles + "]";
+	}
+    
+    
 }

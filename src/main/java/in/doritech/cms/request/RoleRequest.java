@@ -5,28 +5,34 @@ import jakarta.validation.constraints.Size;
 
 public class RoleRequest {
 
-    @NotBlank(message = "Role name is required")
-    @Size(max = 50)
-    private String roleName;
+	@NotBlank(message = "Role name is required")
+	@Size(max = 50)
+	private String roleName;
 
-    private String description;
+	private String description;
 
-    public RoleRequest() {
-    }
+	public RoleRequest() {
+	}
 
-    public String getRoleName() {
-        return roleName;
-    }
+	public String getRoleName() {
+		return roleName;
+	}
 
-    public void setRoleName(String roleName) {
-        this.roleName = roleName;
-    }
+	public void setRoleName(String roleName) {
+		this.roleName = roleName;
+	}
 
-    public String getDescription() {
-        return description;
-    }
+	public String getDescription() {
+		return description;
+	}
 
-    public void setDescription(String description) {
-        this.description = description;
-    }
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	@Override
+	public String toString() {
+		return "RoleRequest [roleName=" + roleName + ", description=" + description + "]";
+	}
+
 }
