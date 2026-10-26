@@ -26,4 +26,6 @@ public interface NewsService {
 	ApiResponse getAllNewsWithPagination(int page, int size);
 
 	ApiResponse createNewsWithImages(NewsRequest request, List<MultipartFile> images);
+
+	ApiResponse updateNewsWithImages(Long id, NewsRequest request, List<MultipartFile> images);
 }

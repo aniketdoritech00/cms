@@ -4,6 +4,7 @@ package in.doritech.cms.controller;
 import java.util.List;
 
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -22,6 +23,7 @@ import in.doritech.cms.util.ApiResponse;
 
 @RestController
 @RequestMapping("/api/cms/news")
+@CrossOrigin(allowedHeaders = "*")
 public class NewsController {
 
 	private final NewsService newsService;
@@ -39,6 +41,12 @@ public class NewsController {
 	public ApiResponse createNews(@ModelAttribute NewsRequest request,
 			@RequestParam("images") List<MultipartFile> images) {
 		return newsService.createNewsWithImages(request, images);
+	}
+
+	@PutMapping(value = "/updateNewsWithImages/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ApiResponse updateNews(@PathVariable Long id, @ModelAttribute NewsRequest request,
+			@RequestParam(value = "images", required = false) List<MultipartFile> images) {
+		return newsService.updateNewsWithImages(id, request, images);
 	}
 
 	@GetMapping("/getNewsById/{id}")

@@ -1,8 +1,11 @@
 
 package in.doritech.cms.controller;
 
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -10,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import in.doritech.cms.request.EmployeeRequest;
 import in.doritech.cms.service.EmployeeService;
@@ -17,6 +21,7 @@ import in.doritech.cms.util.ApiResponse;
 
 @RestController
 @RequestMapping("/api/cms/employees")
+@CrossOrigin(allowedHeaders = "*")
 public class EmployeeController {
 
 	private final EmployeeService employeeService;
@@ -28,6 +33,18 @@ public class EmployeeController {
 	@PostMapping("/createEmployee")
 	public ApiResponse createEmployee(@RequestBody EmployeeRequest request) {
 		return employeeService.createEmployee(request);
+	}
+
+	@PostMapping(value = "/createEmployee", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ApiResponse createEmployee(@ModelAttribute EmployeeRequest request,
+			@RequestParam(value = "profilePicture", required = false) MultipartFile profilePicture) {
+		return employeeService.createEmployee(request, profilePicture);
+	}
+
+	@PutMapping(value = "/updateEmployee/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ApiResponse updateEmployee(@PathVariable Long id, @ModelAttribute EmployeeRequest request,
+			@RequestParam(value = "profilePicture", required = false) MultipartFile profilePicture) {
+		return employeeService.updateEmployee(id, request, profilePicture);
 	}
 
 	@GetMapping("/getEmployeeById/{id}")

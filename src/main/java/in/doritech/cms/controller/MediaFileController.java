@@ -1,6 +1,7 @@
 package in.doritech.cms.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,6 +16,7 @@ import in.doritech.cms.util.ApiResponse;
 
 @RestController
 @RequestMapping("/api/cms/media")
+@CrossOrigin(allowedHeaders = "*")
 public class MediaFileController {
 
 	private final MediaFileService mediaFileService;

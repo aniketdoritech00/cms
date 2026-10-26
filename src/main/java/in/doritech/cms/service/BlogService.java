@@ -26,4 +26,6 @@ public interface BlogService {
 	ApiResponse getAllBlogsWithPagination(int page, int size);
 
 	ApiResponse createBlogWithImages(BlogRequest request, List<MultipartFile> images);
+
+	ApiResponse updateBlogWithImages(Long id, BlogRequest request, List<MultipartFile> images);
 }

@@ -1,6 +1,7 @@
 
 package in.doritech.cms.controller;
 
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,6 +13,7 @@ import in.doritech.cms.util.ApiResponse;
 
 @RestController
 @RequestMapping("/api/cms/auth")
+@CrossOrigin(allowedHeaders = "*")
 public class AuthController {
 
 	private final AuthService authService;

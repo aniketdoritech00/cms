@@ -368,72 +368,188 @@ public class BlogServiceImpl implements BlogService {
 
 	@Override
 	@Transactional
-	public ApiResponse createBlogWithImages(BlogRequest request, List<MultipartFile> images) {
+	public ApiResponse createBlogWithImages(
+	        BlogRequest request, List<MultipartFile> images) {
 
-		try {
-			validateRequest(request);
+	    try {
+	        validateRequest(request);
 
-			Long currentUserId = CurrentUserService.getCurrentUserId();
+	        String slug = request.getSlug().trim();
 
-			if (currentUserId == null) {
-				throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated user not found");
-			}
+	        // Check for duplicate slug before uploading images
+	        if (blogRepository.existsBySlug(slug)) {
+	            throw new ResponseStatusException(
+	                HttpStatus.CONFLICT,
+	                "A blog with slug '" + slug + "' already exists"
+	            );
+	        }
 
-			Employee author = employeeRepository.getReferenceById(currentUserId);
+	        Long currentUserId = CurrentUserService.getCurrentUserId();
 
-			Blog blog = new Blog();
+	        if (currentUserId == null) {
+	            throw new ResponseStatusException(
+	                HttpStatus.UNAUTHORIZED,
+	                "Authenticated user not found"
+	            );
+	        }
 
-			blog.setTitle(request.getTitle().trim());
-			blog.setSlug(request.getSlug().trim());
-			blog.setSummary(request.getSummary());
-			blog.setContent(request.getContent());
-			blog.setStatus("DRAFT");
-			blog.setAuthor(author);
+	        Employee author = employeeRepository.getReferenceById(currentUserId);
 
-			// Set blog categories
-			blog.setCategories(resolveCategories(request.getCategoryIds()));
+	        Blog blog = new Blog();
+	        blog.setTitle(request.getTitle().trim());
+	        blog.setSlug(slug);
+	        blog.setSummary(request.getSummary());
+	        blog.setContent(request.getContent());
+	        blog.setStatus("DRAFT");
+	        blog.setAuthor(author);
+	        blog.setCategories(resolveCategories(request.getCategoryIds()));
 
-			Set<MediaFile> mediaFiles = new HashSet<>();
+	        Set<MediaFile> mediaFiles = new HashSet<>();
 
-			// Save multiple images
-			if (images != null && !images.isEmpty()) {
+	        if (images != null && !images.isEmpty()) {
+	            for (MultipartFile image : images) {
+	                MediaFile savedMedia = saveBlogMediaFile(image, author);
+	                mediaFiles.add(savedMedia);
+	            }
+	        }
 
-				for (MultipartFile image : images) {
+	        blog.setMediaFiles(mediaFiles);
 
-					MediaFile savedMedia = saveBlogMediaFile(image, author);
+	        Blog savedBlog = blogRepository.save(blog);
 
-					mediaFiles.add(savedMedia);
-				}
-			}
+	        BlogResponse blogResponse = convertToResponse(savedBlog);
 
-			// Associate images with the blog
-			blog.setMediaFiles(mediaFiles);
+	        return new ApiResponse(
+	            "Blog created successfully",
+	            blogResponse,
+	            HttpStatus.CREATED.value()
+	        );
 
-			// Save blog
-			Blog savedBlog = blogRepository.save(blog);
+	    } catch (ResponseStatusException e) {
+	        throw e;
 
-			// Convert entity into response DTO
-			BlogResponse blogResponse = convertToResponse(savedBlog);
+	    } catch (DataIntegrityViolationException e) {
+	        log.error("Database constraint violation while creating blog", e);
 
-			return new ApiResponse("Blog created successfully", blogResponse, HttpStatus.CREATED.value());
+	        throw new ResponseStatusException(
+	            HttpStatus.CONFLICT,
+	            "The blog could not be created because a unique or related database constraint was violated"
+	        );
 
-		} catch (ResponseStatusException e) {
+	    } catch (Exception e) {
+	        log.error("Failed to create blog", e);
 
-			throw e;
+	        throw new ResponseStatusException(
+	            HttpStatus.INTERNAL_SERVER_ERROR,
+	            "Failed to create blog"
+	        );
+	    }
+	}
+	
+	@Override
+	@Transactional
+	public ApiResponse updateBlogWithImages(
+	        Long id,
+	        BlogRequest request,
+	        List<MultipartFile> images) {
 
-		} catch (DataIntegrityViolationException e) {
+	    try {
+	        // Validate request
+	        validateRequest(request);
 
-			log.error("Database constraint violation while creating blog", e);
+	        // Find existing blog
+	        Blog blog = blogRepository.findById(id)
+	                .orElseThrow(() -> new ResponseStatusException(
+	                        HttpStatus.NOT_FOUND,
+	                        "Blog not found with id: " + id
+	                ));
 
-			throw new ResponseStatusException(HttpStatus.CONFLICT,
-					"Blog slug or associated data conflicts with existing records");
+	        // Get updated slug
+	        String slug = request.getSlug().trim();
 
-		} catch (Exception e) {
+	        // Check duplicate slug
+	        if (blogRepository.existsBySlug(slug)
+	                && !slug.equals(blog.getSlug())) {
 
-			log.error("Failed to create blog", e);
+	            throw new ResponseStatusException(
+	                    HttpStatus.CONFLICT,
+	                    "A blog with slug '" + slug + "' already exists"
+	            );
+	        }
 
-			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to create blog");
-		}
+	        // Update blog fields
+	        blog.setTitle(request.getTitle().trim());
+	        blog.setSlug(slug);
+	        blog.setSummary(request.getSummary());
+	        blog.setContent(request.getContent());
+
+	        // Update categories
+	        blog.setCategories(resolveCategories(request.getCategoryIds()));
+
+	        // Upload new images only when provided
+	        if (images != null && !images.isEmpty()) {
+
+	            Long currentUserId = CurrentUserService.getCurrentUserId();
+
+	            if (currentUserId == null) {
+	                throw new ResponseStatusException(
+	                        HttpStatus.UNAUTHORIZED,
+	                        "Authenticated user not found"
+	                );
+	            }
+
+	            Employee employee =
+	                    employeeRepository.getReferenceById(currentUserId);
+
+	            // Keep existing images
+	            Set<MediaFile> mediaFiles = blog.getMediaFiles();
+
+	            if (mediaFiles == null) {
+	                mediaFiles = new HashSet<>();
+	            }
+
+	            // Save and associate new images
+	            for (MultipartFile image : images) {
+	                MediaFile savedMedia =
+	                        saveBlogMediaFile(image, employee);
+
+	                mediaFiles.add(savedMedia);
+	            }
+
+	            blog.setMediaFiles(mediaFiles);
+	        }
+
+	        // Save updated blog
+	        Blog updatedBlog = blogRepository.save(blog);
+
+	        // Convert entity to response DTO
+	        BlogResponse blogResponse = convertToResponse(updatedBlog);
+
+	        return new ApiResponse(
+	                "Blog updated successfully",
+	                blogResponse,
+	                HttpStatus.OK.value()
+	        );
+
+	    } catch (ResponseStatusException e) {
+	        throw e;
+
+	    } catch (DataIntegrityViolationException e) {
+	        log.error("Database constraint violation while updating blog", e);
+
+	        throw new ResponseStatusException(
+	                HttpStatus.CONFLICT,
+	                "The blog could not be updated because a unique or related database constraint was violated"
+	        );
+
+	    } catch (Exception e) {
+	        log.error("Failed to update blog", e);
+
+	        throw new ResponseStatusException(
+	                HttpStatus.INTERNAL_SERVER_ERROR,
+	                "Failed to update blog"
+	        );
+	    }
 	}
 
 	// Save image to disk and metadata to database

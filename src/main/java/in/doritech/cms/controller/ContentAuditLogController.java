@@ -1,6 +1,7 @@
 
 package in.doritech.cms.controller;
 
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,6 +13,7 @@ import in.doritech.cms.util.ApiResponse;
 
 @RestController
 @RequestMapping("/api/cms/audit-logs")
+@CrossOrigin(allowedHeaders = "*")
 public class ContentAuditLogController {
 
 	private final ContentAuditLogService auditLogService;

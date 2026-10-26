@@ -14,6 +14,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -46,6 +47,10 @@ public class Employee {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "department_id")
 	private Department department;
+
+	@OneToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "profile_picture_media_id")
+	private MediaFile profilePicture;
 
 	@ManyToMany(fetch = FetchType.EAGER)
 	@JoinTable(name = "employee_roles", joinColumns = @JoinColumn(name = "employee_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
@@ -148,4 +153,21 @@ public class Employee {
 	public LocalDateTime getUpdatedAt() {
 		return updatedAt;
 	}
+
+	public MediaFile getProfilePicture() {
+		return profilePicture;
+	}
+
+	public void setProfilePicture(MediaFile profilePicture) {
+		this.profilePicture = profilePicture;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
 }

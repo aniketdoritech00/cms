@@ -3,6 +3,7 @@ package in.doritech.cms.controller;
 import java.util.List;
 
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -21,6 +22,7 @@ import in.doritech.cms.util.ApiResponse;
 
 @RestController
 @RequestMapping("/api/cms/blogs")
+@CrossOrigin(allowedHeaders = "*")
 public class BlogController {
 
 	private final BlogService blogService;
@@ -38,6 +40,12 @@ public class BlogController {
 	public ApiResponse createBlog(@ModelAttribute BlogRequest request,
 			@RequestParam("images") List<MultipartFile> images) {
 		return blogService.createBlogWithImages(request, images);
+	}
+
+	@PutMapping(value = "/updateBlogWithImages/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ApiResponse updateBlogWithImages(@PathVariable Long id, @ModelAttribute BlogRequest request,
+			@RequestParam(value = "images", required = false) List<MultipartFile> images) {
+		return blogService.updateBlogWithImages(id, request, images);
 	}
 
 	@GetMapping("/getBlogById/{id}")
