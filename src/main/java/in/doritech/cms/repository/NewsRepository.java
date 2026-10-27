@@ -1,7 +1,6 @@
 package in.doritech.cms.repository;
 
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,10 +11,10 @@ import in.doritech.cms.entity.News;
 
 @Repository
 public interface NewsRepository extends JpaRepository<News, Long> {
-
-	Optional<News> findBySlug(String slug);
-
-	boolean existsBySlug(String slug);
+//
+//	Optional<News> findBySlug(String slug);
+//
+//	boolean existsBySlug(String slug);
 
 	List<News> findByStatus(String status);
 

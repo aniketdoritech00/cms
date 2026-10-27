@@ -30,8 +30,8 @@ public class Blog {
 	@Column(nullable = false)
 	private String title;
 
-	@Column(nullable = false, unique = true)
-	private String slug;
+//	@Column(nullable = false, unique = true)
+//	private String slug;
 
 	@Column(length = 1000)
 	private String summary;
@@ -91,13 +91,13 @@ public class Blog {
 		this.title = title;
 	}
 
-	public String getSlug() {
-		return slug;
-	}
-
-	public void setSlug(String slug) {
-		this.slug = slug;
-	}
+//	public String getSlug() {
+//		return slug;
+//	}
+//
+//	public void setSlug(String slug) {
+//		this.slug = slug;
+//	}
 
 	public String getSummary() {
 		return summary;

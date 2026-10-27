@@ -81,7 +81,7 @@ public class BlogServiceImpl implements BlogService {
 			Blog blog = new Blog();
 
 			blog.setTitle(request.getTitle().trim());
-			blog.setSlug(request.getSlug().trim());
+//			blog.setSlug(request.getSlug().trim());
 			blog.setSummary(request.getSummary());
 			blog.setContent(request.getContent());
 			blog.setStatus("DRAFT");
@@ -183,7 +183,7 @@ public class BlogServiceImpl implements BlogService {
 			Blog blog = findBlogById(id);
 
 			blog.setTitle(request.getTitle().trim());
-			blog.setSlug(request.getSlug().trim());
+//			blog.setSlug(request.getSlug().trim());
 			blog.setSummary(request.getSummary());
 			blog.setContent(request.getContent());
 
@@ -253,9 +253,9 @@ public class BlogServiceImpl implements BlogService {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Blog title must not exceed 255 characters");
 		}
 
-		if (request.getSlug() == null || request.getSlug().trim().isEmpty()) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Blog slug is required");
-		}
+//		if (request.getSlug() == null || request.getSlug().trim().isEmpty()) {
+//			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Blog slug is required");
+//		}
 
 		if (request.getSummary() != null && request.getSummary().length() > 1000) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Blog summary must not exceed 1000 characters");
@@ -351,13 +351,13 @@ public class BlogServiceImpl implements BlogService {
 		try {
 			validateRequest(request);
 
-			String slug = request.getSlug().trim();
+//			String slug = request.getSlug().trim();
 
-			// Check for duplicate slug before uploading images
-			if (blogRepository.existsBySlug(slug)) {
-				throw new ResponseStatusException(HttpStatus.CONFLICT,
-						"A blog with slug '" + slug + "' already exists");
-			}
+//			// Check for duplicate slug before uploading images
+//			if (blogRepository.existsBySlug(slug)) {
+//				throw new ResponseStatusException(HttpStatus.CONFLICT,
+//						"A blog with slug '" + slug + "' already exists");
+//			}
 
 			Long currentUserId = CurrentUserService.getCurrentUserId();
 
@@ -369,7 +369,7 @@ public class BlogServiceImpl implements BlogService {
 
 			Blog blog = new Blog();
 			blog.setTitle(request.getTitle().trim());
-			blog.setSlug(slug);
+//			blog.setSlug(slug);
 			blog.setSummary(request.getSummary());
 			blog.setContent(request.getContent());
 			blog.setStatus("DRAFT");
@@ -422,18 +422,18 @@ public class BlogServiceImpl implements BlogService {
 					() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Blog not found with id: " + id));
 
 			// Get updated slug
-			String slug = request.getSlug().trim();
+//			String slug = request.getSlug().trim();
 
 			// Check duplicate slug
-			if (blogRepository.existsBySlug(slug) && !slug.equals(blog.getSlug())) {
-
-				throw new ResponseStatusException(HttpStatus.CONFLICT,
-						"A blog with slug '" + slug + "' already exists");
-			}
+//			if (blogRepository.existsBySlug(slug) && !slug.equals(blog.getSlug())) {
+//
+//				throw new ResponseStatusException(HttpStatus.CONFLICT,
+//						"A blog with slug '" + slug + "' already exists");
+//			}
 
 			// Update blog fields
 			blog.setTitle(request.getTitle().trim());
-			blog.setSlug(slug);
+//			blog.setSlug(slug);
 			blog.setSummary(request.getSummary());
 			blog.setContent(request.getContent());
 
@@ -582,7 +582,7 @@ public class BlogServiceImpl implements BlogService {
 
 		response.setBlogId(blog.getBlogId());
 		response.setTitle(blog.getTitle());
-		response.setSlug(blog.getSlug());
+//		response.setSlug(blog.getSlug());
 		response.setSummary(blog.getSummary());
 		response.setContent(blog.getContent());
 		response.setStatus(blog.getStatus());

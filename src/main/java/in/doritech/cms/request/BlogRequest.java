@@ -11,8 +11,8 @@ public class BlogRequest {
     @Size(max = 255)
     private String title;
 
-    @NotBlank(message = "Blog slug is required")
-    private String slug;
+//    @NotBlank(message = "Blog slug is required")
+//    private String slug;
 
     @Size(max = 1000)
     private String summary;
@@ -35,13 +35,13 @@ public class BlogRequest {
         this.title = title;
     }
 
-    public String getSlug() {
-        return slug;
-    }
-
-    public void setSlug(String slug) {
-        this.slug = slug;
-    }
+//    public String getSlug() {
+//        return slug;
+//    }
+//
+//    public void setSlug(String slug) {
+//        this.slug = slug;
+//    }
 
     public String getSummary() {
         return summary;

@@ -7,7 +7,7 @@ public class NewsResponse {
 
     private Long newsId;
     private String title;
-    private String slug;
+//    private String slug;
     private String summary;
     private String content;
     private String status;
@@ -41,13 +41,13 @@ public class NewsResponse {
         this.title = title;
     }
 
-    public String getSlug() {
-        return slug;
-    }
-
-    public void setSlug(String slug) {
-        this.slug = slug;
-    }
+//    public String getSlug() {
+//        return slug;
+//    }
+//
+//    public void setSlug(String slug) {
+//        this.slug = slug;
+//    }
 
     public String getSummary() {
         return summary;

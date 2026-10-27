@@ -30,8 +30,8 @@ public class News {
 	@Column(nullable = false)
 	private String title;
 
-	@Column(nullable = false, unique = true)
-	private String slug;
+	/*@Column(nullable = false, unique = true)
+	private String slug;*/
 
 	@Column(length = 1000)
 	private String summary;
@@ -91,13 +91,13 @@ public class News {
 		this.title = title;
 	}
 
-	public String getSlug() {
-		return slug;
-	}
-
-	public void setSlug(String slug) {
-		this.slug = slug;
-	}
+//	public String getSlug() {
+//		return slug;
+//	}
+//
+//	public void setSlug(String slug) {
+//		this.slug = slug;
+//	}
 
 	public String getSummary() {
 		return summary;
@@ -163,12 +163,5 @@ public class News {
 		this.mediaFiles = mediaFiles;
 	}
 
-	@Override
-	public String toString() {
-		return "News [newsId=" + newsId + ", title=" + title + ", slug=" + slug + ", summary=" + summary + ", content="
-				+ content + ", status=" + status + ", publishedAt=" + publishedAt + ", createdAt=" + createdAt
-				+ ", updatedAt=" + updatedAt + ", author=" + author + ", categories=" + categories + ", mediaFiles="
-				+ mediaFiles + "]";
-	}
 
 }

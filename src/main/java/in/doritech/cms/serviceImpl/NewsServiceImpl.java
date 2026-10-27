@@ -79,7 +79,7 @@ public class NewsServiceImpl implements NewsService {
 
 			News news = new News();
 			news.setTitle(request.getTitle().trim());
-			news.setSlug(request.getSlug().trim());
+//			news.setSlug(request.getSlug().trim());
 			news.setSummary(request.getSummary());
 			news.setContent(request.getContent());
 			news.setStatus("DRAFT");
@@ -203,7 +203,7 @@ public class NewsServiceImpl implements NewsService {
 			News news = findNewsById(id);
 
 			news.setTitle(request.getTitle().trim());
-			news.setSlug(request.getSlug().trim());
+//			news.setSlug(request.getSlug().trim());
 			news.setSummary(request.getSummary());
 			news.setContent(request.getContent());
 
@@ -290,9 +290,9 @@ public class NewsServiceImpl implements NewsService {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "News title must not exceed 255 characters");
 		}
 
-		if (request.getSlug() == null || request.getSlug().trim().isEmpty()) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "News slug is required");
-		}
+//		if (request.getSlug() == null || request.getSlug().trim().isEmpty()) {
+//			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "News slug is required");
+//		}
 
 		if (request.getSummary() != null && request.getSummary().length() > 1000) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "News summary must not exceed 1000 characters");
@@ -350,7 +350,7 @@ public class NewsServiceImpl implements NewsService {
 
 		response.setNewsId(news.getNewsId());
 		response.setTitle(news.getTitle());
-		response.setSlug(news.getSlug());
+//		response.setSlug(news.getSlug());
 		response.setSummary(news.getSummary());
 		response.setContent(news.getContent());
 		response.setStatus(news.getStatus());
@@ -432,7 +432,7 @@ public class NewsServiceImpl implements NewsService {
 			News news = new News();
 
 			news.setTitle(request.getTitle().trim());
-			news.setSlug(request.getSlug().trim());
+//			news.setSlug(request.getSlug().trim());
 			news.setSummary(request.getSummary());
 			news.setContent(request.getContent());
 			news.setStatus("DRAFT");
@@ -491,17 +491,17 @@ public class NewsServiceImpl implements NewsService {
 			News news = newsRepository.findById(id).orElseThrow(
 					() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "News not found with id: " + id));
 
-			String slug = request.getSlug().trim();
-
-			// Check duplicate slug
-			if (newsRepository.existsBySlug(slug) && !slug.equals(news.getSlug())) {
-
-				throw new ResponseStatusException(HttpStatus.CONFLICT, "News slug already exists: " + slug);
-			}
+//			String slug = request.getSlug().trim();
+//
+//			// Check duplicate slug
+//			if (newsRepository.existsBySlug(slug) && !slug.equals(news.getSlug())) {
+//
+//				throw new ResponseStatusException(HttpStatus.CONFLICT, "News slug already exists: " + slug);
+//			}
 
 			// Update news fields
 			news.setTitle(request.getTitle().trim());
-			news.setSlug(slug);
+//			news.setSlug(slug);
 			news.setSummary(request.getSummary());
 			news.setContent(request.getContent());
 
