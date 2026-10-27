@@ -37,7 +37,7 @@ public class Blog {
 	private String summary;
 
 	@Lob
-	@Column(nullable = false)
+	@Column(nullable = false, columnDefinition = "LONGTEXT")
 	private String content;
 
 	@Column(nullable = false)

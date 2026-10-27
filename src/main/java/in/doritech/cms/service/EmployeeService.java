@@ -22,4 +22,6 @@ public interface EmployeeService {
 	ApiResponse createEmployee(EmployeeRequest request, MultipartFile profilePicture);
 
 	ApiResponse updateEmployee(Long id, EmployeeRequest request, MultipartFile profilePicture);
+
+	ApiResponse changePassword(String currentPassword, String newPassword);
 }

@@ -28,4 +28,6 @@ public interface NewsService {
 	ApiResponse createNewsWithImages(NewsRequest request, List<MultipartFile> images);
 
 	ApiResponse updateNewsWithImages(Long id, NewsRequest request, List<MultipartFile> images);
+
+	ApiResponse publishNews(List<Long> ids);
 }

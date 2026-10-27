@@ -58,6 +58,10 @@ public class NewsController {
 	public ApiResponse getAllNews() {
 		return newsService.getAllNews();
 	}
+	@PostMapping("/publishNews")
+	public ApiResponse publishNews(@RequestParam List<Long> ids) {
+		return newsService.publishNews(ids);
+	}
 
 	@GetMapping("/getAllNewsWithPagination")
 	public ApiResponse getAllNewsWithPagination(@RequestParam(defaultValue = "0") int page,

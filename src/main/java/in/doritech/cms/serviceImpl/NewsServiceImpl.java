@@ -19,6 +19,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -140,10 +141,9 @@ public class NewsServiceImpl implements NewsService {
 						"Page must be 0 or greater and size must be greater than 0");
 			}
 
-			Pageable pageable = PageRequest.of(page, size);
+			Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
 			Page<News> newsPage = newsRepository.findAll(pageable);
-			System.out.println("News details is" + newsPage.toString());
 
 			List<NewsResponse> responses = newsPage.getContent().stream().map(this::convertToResponse)
 					.collect(Collectors.toList());
@@ -478,107 +478,86 @@ public class NewsServiceImpl implements NewsService {
 			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to create news");
 		}
 	}
-	
+
 	@Override
 	@Transactional
-	public ApiResponse updateNewsWithImages(
-	        Long id, NewsRequest request, List<MultipartFile> images) {
+	public ApiResponse updateNewsWithImages(Long id, NewsRequest request, List<MultipartFile> images) {
 
-	    try {
+		try {
 
-	        validateRequest(request);
+			validateRequest(request);
 
-	        // Find existing news
-	        News news = newsRepository.findById(id)
-	                .orElseThrow(() -> new ResponseStatusException(
-	                        HttpStatus.NOT_FOUND,
-	                        "News not found with id: " + id
-	                ));
+			// Find existing news
+			News news = newsRepository.findById(id).orElseThrow(
+					() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "News not found with id: " + id));
 
-	        String slug = request.getSlug().trim();
+			String slug = request.getSlug().trim();
 
-	        // Check duplicate slug
-	        if (newsRepository.existsBySlug(slug)
-	                && !slug.equals(news.getSlug())) {
+			// Check duplicate slug
+			if (newsRepository.existsBySlug(slug) && !slug.equals(news.getSlug())) {
 
-	            throw new ResponseStatusException(
-	                    HttpStatus.CONFLICT,
-	                    "News slug already exists: " + slug
-	            );
-	        }
+				throw new ResponseStatusException(HttpStatus.CONFLICT, "News slug already exists: " + slug);
+			}
 
-	        // Update news fields
-	        news.setTitle(request.getTitle().trim());
-	        news.setSlug(slug);
-	        news.setSummary(request.getSummary());
-	        news.setContent(request.getContent());
+			// Update news fields
+			news.setTitle(request.getTitle().trim());
+			news.setSlug(slug);
+			news.setSummary(request.getSummary());
+			news.setContent(request.getContent());
 
-	        // Update categories
-	        news.setCategories(resolveCategories(request.getCategoryIds()));
+			// Update categories
+			news.setCategories(resolveCategories(request.getCategoryIds()));
 
-	        // Add new images if provided
-	        if (images != null && !images.isEmpty()) {
+			// Add new images if provided
+			if (images != null && !images.isEmpty()) {
 
-	            Long currentUserId = CurrentUserService.getCurrentUserId();
+				Long currentUserId = CurrentUserService.getCurrentUserId();
 
-	            if (currentUserId == null) {
-	                throw new ResponseStatusException(
-	                        HttpStatus.UNAUTHORIZED,
-	                        "Authenticated user not found"
-	                );
-	            }
+				if (currentUserId == null) {
+					throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated user not found");
+				}
 
-	            Employee employee =
-	                    employeeRepository.getReferenceById(currentUserId);
+				Employee employee = employeeRepository.getReferenceById(currentUserId);
 
-	            Set<MediaFile> mediaFiles = news.getMediaFiles();
+				Set<MediaFile> mediaFiles = news.getMediaFiles();
 
-	            if (mediaFiles == null) {
-	                mediaFiles = new HashSet<>();
-	            }
+				if (mediaFiles == null) {
+					mediaFiles = new HashSet<>();
+				}
 
-	            for (MultipartFile image : images) {
+				for (MultipartFile image : images) {
 
-	                MediaFile savedMedia = saveMediaFile(image, employee);
+					MediaFile savedMedia = saveMediaFile(image, employee);
 
-	                mediaFiles.add(savedMedia);
-	            }
+					mediaFiles.add(savedMedia);
+				}
 
-	            news.setMediaFiles(mediaFiles);
-	        }
+				news.setMediaFiles(mediaFiles);
+			}
 
-	        // Save updated news
-	        News updatedNews = newsRepository.save(news);
+			// Save updated news
+			News updatedNews = newsRepository.save(news);
 
-	        // Convert entity to response
-	        NewsResponse newsResponse = convertToResponse(updatedNews);
+			// Convert entity to response
+			NewsResponse newsResponse = convertToResponse(updatedNews);
 
-	        return new ApiResponse(
-	                "News updated successfully",
-	                newsResponse,
-	                HttpStatus.OK.value()
-	        );
+			return new ApiResponse("News updated successfully", newsResponse, HttpStatus.OK.value());
 
-	    } catch (ResponseStatusException e) {
+		} catch (ResponseStatusException e) {
 
-	        throw e;
+			throw e;
 
-	    } catch (DataIntegrityViolationException e) {
+		} catch (DataIntegrityViolationException e) {
 
-	        throw new ResponseStatusException(
-	                HttpStatus.CONFLICT,
-	                "News slug or associated data conflicts with existing records"
-	        );
+			throw new ResponseStatusException(HttpStatus.CONFLICT,
+					"News slug or associated data conflicts with existing records");
 
-	    } catch (Exception e) {
+		} catch (Exception e) {
 
-	        log.error("Failed to update news with id: " + id, e);
+			log.error("Failed to update news with id: " + id, e);
 
-	        throw new ResponseStatusException(
-	                HttpStatus.INTERNAL_SERVER_ERROR,
-	                "Failed to update news"
-	        );
-	    }
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update news");
+		}
 	}
 
 	private MediaFile saveMediaFile(MultipartFile file, Employee employee) {
@@ -648,4 +627,50 @@ public class NewsServiceImpl implements NewsService {
 			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to store image");
 		}
 	}
+
+	@Override
+	public ApiResponse publishNews(List<Long> ids) {
+
+		try {
+			List<Long> distinctIds = ids.stream().distinct().toList();
+
+			List<News> newsList = newsRepository.findAllById(distinctIds);
+
+			if (newsList.isEmpty()) {
+				return new ApiResponse("No news found for the provided IDs", new ArrayList<>(), HttpStatus.OK.value());
+			}
+
+			List<NewsResponse> responses = new ArrayList<>();
+
+			for (News news : newsList) {
+
+				news.setStatus("PUBLISHED");
+
+				if (news.getPublishedAt() == null) {
+					news.setPublishedAt(LocalDateTime.now());
+				}
+
+				News published = newsRepository.save(news);
+
+				responses.add(convertToResponse(published));
+			}
+
+			return new ApiResponse("News published successfully. Missing IDs were skipped.", responses,
+					HttpStatus.OK.value());
+
+		} catch (DataIntegrityViolationException e) {
+
+			log.error("Database constraint violation publishing News", e);
+
+			throw new ResponseStatusException(HttpStatus.CONFLICT,
+					"Unable to publish News because of a database constraint");
+
+		} catch (Exception e) {
+
+			log.error("Failed to publish News", e);
+
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to publish News");
+		}
+	}
+
 }

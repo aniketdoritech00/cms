@@ -21,11 +21,11 @@ public interface BlogService {
 
 	ApiResponse deleteBlog(Long id);
 
-	ApiResponse publishBlog(Long id);
-
 	ApiResponse getAllBlogsWithPagination(int page, int size);
 
 	ApiResponse createBlogWithImages(BlogRequest request, List<MultipartFile> images);
 
 	ApiResponse updateBlogWithImages(Long id, BlogRequest request, List<MultipartFile> images);
+
+	ApiResponse publishBlogs(List<Long> ids);
 }

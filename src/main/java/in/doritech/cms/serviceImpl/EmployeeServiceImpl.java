@@ -37,7 +37,9 @@ import in.doritech.cms.request.EmployeeRequest;
 import in.doritech.cms.response.EmployeeResponse;
 import in.doritech.cms.response.PageResponse;
 import in.doritech.cms.response.RoleResponse;
+import in.doritech.cms.security.CurrentUserService;
 import in.doritech.cms.service.EmployeeService;
+import in.doritech.cms.service.ParamService;
 import in.doritech.cms.util.ApiResponse;
 
 @Service
@@ -48,15 +50,18 @@ public class EmployeeServiceImpl implements EmployeeService {
 	private final RoleRepository roleRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final MediaFileRepository mediaFileRepository;
+	private final ParamService paramService;
 
 	public EmployeeServiceImpl(EmployeeRepository employeeRepository, DepartmentRepository departmentRepository,
-			RoleRepository roleRepository, PasswordEncoder passwordEncoder, MediaFileRepository mediaFileRepository) {
+			RoleRepository roleRepository, PasswordEncoder passwordEncoder, MediaFileRepository mediaFileRepository,
+			ParamService paramService) {
 
 		this.employeeRepository = employeeRepository;
 		this.departmentRepository = departmentRepository;
 		this.roleRepository = roleRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.mediaFileRepository = mediaFileRepository;
+		this.paramService = paramService;
 	}
 
 	@Override
@@ -99,6 +104,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 			Employee saved = employeeRepository.save(employee);
 
+			paramService.updateCodeValue(saved.getEmployeeCode());
 			return new ApiResponse("Employee created successfully", convertToResponse(saved),
 					HttpStatus.CREATED.value());
 
@@ -326,7 +332,16 @@ public class EmployeeServiceImpl implements EmployeeService {
 			employee.setEmployeeCode(request.getEmployeeCode().trim());
 			employee.setEmployeeName(request.getEmployeeName().trim());
 			employee.setEmail(request.getEmail().trim());
-			employee.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+			if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
+
+				if (request.getPassword().length() < 4) {
+					throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+							"Password must contain at least 4 characters");
+				}
+
+				employee.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+			}
+
 			employee.setMobileNumber(request.getMobileNumber());
 			employee.setStatus("ACTIVE");
 			employee.setDepartment(department);
@@ -346,6 +361,8 @@ public class EmployeeServiceImpl implements EmployeeService {
 				// Update employee with profile picture media ID
 				savedEmployee = employeeRepository.save(savedEmployee);
 			}
+
+			paramService.updateCodeValue(savedEmployee.getEmployeeCode());
 
 			return new ApiResponse("Employee created successfully", convertToResponse(savedEmployee),
 					HttpStatus.CREATED.value());
@@ -420,9 +437,9 @@ public class EmployeeServiceImpl implements EmployeeService {
 			// Update password only when a new password is provided
 			if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
 
-				if (request.getPassword().length() < 8) {
+				if (request.getPassword().length() < 4) {
 					throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-							"Password must contain at least 8 characters");
+							"Password must contain at least 4 characters");
 				}
 
 				employee.setPasswordHash(passwordEncoder.encode(request.getPassword()));
@@ -522,6 +539,36 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 		} catch (IOException e) {
 			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to store profile picture");
+		}
+	}
+
+	@Override
+	public ApiResponse changePassword(String currentPassword, String newPassword) {
+
+		try {
+			Long employeeId = CurrentUserService.getCurrentUserId();
+
+			Employee employee = employeeRepository.findById(employeeId).orElse(null);
+
+			if (employee == null) {
+				return new ApiResponse("Employee not found", null, 404);
+			}
+
+			if (!passwordEncoder.matches(currentPassword, employee.getPasswordHash())) {
+				return new ApiResponse("Current password is incorrect", null, 400);
+			}
+
+			if (passwordEncoder.matches(newPassword, employee.getPasswordHash())) {
+				return new ApiResponse("New password must be different from current password", null, 400);
+			}
+
+			employee.setPasswordHash(passwordEncoder.encode(newPassword));
+			employeeRepository.save(employee);
+
+			return new ApiResponse("Password changed successfully", null, 200);
+
+		} catch (Exception e) {
+			return new ApiResponse("Unable to change password", null, 500);
 		}
 	}
 

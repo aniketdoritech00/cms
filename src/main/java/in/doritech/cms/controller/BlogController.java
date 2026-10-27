@@ -42,6 +42,11 @@ public class BlogController {
 		return blogService.createBlogWithImages(request, images);
 	}
 
+	@PostMapping("/publishBlogs")
+	public ApiResponse publishBlogs(@RequestParam List<Long> ids) {
+		return blogService.publishBlogs(ids);
+	}
+
 	@PutMapping(value = "/updateBlogWithImages/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ApiResponse updateBlogWithImages(@PathVariable Long id, @ModelAttribute BlogRequest request,
 			@RequestParam(value = "images", required = false) List<MultipartFile> images) {

@@ -72,4 +72,9 @@ public class EmployeeController {
 	public ApiResponse deleteEmployee(@PathVariable Long id) {
 		return employeeService.deleteEmployee(id);
 	}
+
+	@PutMapping("/changePassword")
+	public ApiResponse changePassword(@RequestParam String currentPassword, @RequestParam String newPassword) {
+		return employeeService.changePassword(currentPassword, newPassword);
+	}
 }
