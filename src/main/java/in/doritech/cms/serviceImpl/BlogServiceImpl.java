@@ -1,6 +1,7 @@
 package in.doritech.cms.serviceImpl;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -457,26 +458,15 @@ public class BlogServiceImpl implements BlogService {
 			Blog blog = blogRepository.findById(id).orElseThrow(
 					() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Blog not found with id: " + id));
 
-			// Get updated slug
-//			String slug = request.getSlug().trim();
-
-			// Check duplicate slug
-//			if (blogRepository.existsBySlug(slug) && !slug.equals(blog.getSlug())) {
-//
-//				throw new ResponseStatusException(HttpStatus.CONFLICT,
-//						"A blog with slug '" + slug + "' already exists");
-//			}
-
 			// Update blog fields
 			blog.setTitle(request.getTitle().trim());
-//			blog.setSlug(slug);
 			blog.setSummary(request.getSummary());
 			blog.setContent(request.getContent());
 
 			// Update categories
 			blog.setCategories(resolveCategories(request.getCategoryIds()));
 
-			// Upload new images only when provided
+			// Replace images only when new images are provided
 			if (images != null && !images.isEmpty()) {
 
 				Long currentUserId = CurrentUserService.getCurrentUserId();
@@ -487,27 +477,62 @@ public class BlogServiceImpl implements BlogService {
 
 				Employee employee = employeeRepository.getReferenceById(currentUserId);
 
-				// Keep existing images
-				Set<MediaFile> mediaFiles = blog.getMediaFiles();
+				// Store existing images before replacing them
+				Set<MediaFile> oldMediaFiles = new HashSet<>();
 
-				if (mediaFiles == null) {
-					mediaFiles = new HashSet<>();
+				if (blog.getMediaFiles() != null) {
+					oldMediaFiles.addAll(blog.getMediaFiles());
 				}
 
-				// Save and associate new images
+				// Upload new images
+				Set<MediaFile> newMediaFiles = new HashSet<>();
+
 				for (MultipartFile image : images) {
 					MediaFile savedMedia = saveBlogMediaFile(image, employee);
-
-					mediaFiles.add(savedMedia);
+					newMediaFiles.add(savedMedia);
 				}
 
-				blog.setMediaFiles(mediaFiles);
+				// Replace old image mappings with new mappings
+				blog.setMediaFiles(newMediaFiles);
+
+				// Save updated blog and mapping
+				Blog updatedBlog = blogRepository.saveAndFlush(blog);
+
+				// Delete old images if no blog references them anymore
+				for (MediaFile oldMedia : oldMediaFiles) {
+
+					Long oldMediaId = oldMedia.getMediaId();
+
+					boolean stillUsedByBlog = blogRepository.existsByMediaFiles_MediaId(oldMediaId);
+
+					if (!stillUsedByBlog) {
+
+						// Delete physical image file
+						try {
+							String filePath = oldMedia.getFilePath();
+
+							if (filePath != null && !filePath.trim().isEmpty()) {
+								Files.deleteIfExists(Paths.get(filePath));
+							}
+
+						} catch (IOException e) {
+							log.error("Failed to delete old blog image file: {}", oldMedia.getFilePath(), e);
+						}
+
+						// Delete old media_files record
+						mediaFileRepository.deleteById(oldMediaId);
+					}
+				}
+
+				// Convert updated entity to response
+				BlogResponse blogResponse = convertToResponse(updatedBlog);
+
+				return new ApiResponse("Blog updated successfully", blogResponse, HttpStatus.OK.value());
 			}
 
-			// Save updated blog
+			// No new images supplied: keep existing images
 			Blog updatedBlog = blogRepository.save(blog);
 
-			// Convert entity to response DTO
 			BlogResponse blogResponse = convertToResponse(updatedBlog);
 
 			return new ApiResponse("Blog updated successfully", blogResponse, HttpStatus.OK.value());
@@ -528,7 +553,7 @@ public class BlogServiceImpl implements BlogService {
 		}
 	}
 
-	// Save image to disk and metadata to database
+// Save image to disk and metadata to database
 	private MediaFile saveBlogMediaFile(MultipartFile file, Employee employee) {
 
 		try {
@@ -536,18 +561,23 @@ public class BlogServiceImpl implements BlogService {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image file cannot be empty");
 			}
 
+			// Validate image type
 			String contentType = file.getContentType();
 
 			if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
+
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only image files are allowed");
 			}
 
+			// Get original filename
 			String originalFilename = file.getOriginalFilename();
 
 			if (originalFilename == null || originalFilename.trim().isEmpty()) {
+
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image filename is required");
 			}
 
+			// Generate unique filename
 			String storedFilename = UUID.randomUUID().toString();
 
 			int dotIndex = originalFilename.lastIndexOf('.');
@@ -556,18 +586,24 @@ public class BlogServiceImpl implements BlogService {
 				storedFilename += originalFilename.substring(dotIndex);
 			}
 
+			// Create upload directory
 			Path uploadDirectory = Paths.get("uploads", "blogs").toAbsolutePath().normalize();
 
 			Files.createDirectories(uploadDirectory);
 
+			// Create destination path
 			Path destination = uploadDirectory.resolve(storedFilename).normalize();
 
 			if (!destination.startsWith(uploadDirectory)) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid image path");
 			}
 
-			Files.copy(file.getInputStream(), destination, StandardCopyOption.REPLACE_EXISTING);
+			// Save physical image
+			try (InputStream inputStream = file.getInputStream()) {
+				Files.copy(inputStream, destination, StandardCopyOption.REPLACE_EXISTING);
+			}
 
+			// Create media metadata
 			MediaFile mediaFile = new MediaFile();
 
 			mediaFile.setOriginalFilename(originalFilename);
@@ -578,15 +614,15 @@ public class BlogServiceImpl implements BlogService {
 			mediaFile.setUploadedAt(LocalDateTime.now());
 			mediaFile.setUploadedBy(employee);
 
+			// Save media_files record
 			return mediaFileRepository.save(mediaFile);
 
 		} catch (IOException e) {
 			log.error("Failed to store blog image", e);
 
-			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to store image");
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to store image", e);
 		}
 	}
-
 
 	// Convert Blog entity to response DTO
 	private BlogResponse convertToResponse(Blog blog) {
