@@ -21,4 +21,6 @@ public interface NewsRepository extends JpaRepository<News, Long> {
 	List<News> findByAuthor_EmployeeId(Long employeeId);
 
 	Page<News> findByStatus(String string, Pageable pageable);
+
+	boolean existsByMediaFiles_MediaId(Long id);
 }

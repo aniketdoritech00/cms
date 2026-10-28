@@ -30,4 +30,6 @@ public interface NewsService {
 	ApiResponse updateNewsWithImages(Long id, NewsRequest request, List<MultipartFile> images);
 
 	ApiResponse publishNews(List<Long> ids);
+
+	ApiResponse getAllNewsWithPaginationWithStatus(int page, int size);
 }

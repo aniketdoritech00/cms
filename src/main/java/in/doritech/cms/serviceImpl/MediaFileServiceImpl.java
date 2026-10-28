@@ -20,7 +20,9 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import in.doritech.cms.entity.MediaFile;
+import in.doritech.cms.repository.BlogRepository;
 import in.doritech.cms.repository.MediaFileRepository;
+import in.doritech.cms.repository.NewsRepository;
 import in.doritech.cms.response.MediaFileResponse;
 import in.doritech.cms.service.MediaFileService;
 import in.doritech.cms.util.ApiResponse;
@@ -30,11 +32,18 @@ public class MediaFileServiceImpl implements MediaFileService {
 
 	private final MediaFileRepository mediaFileRepository;
 
+	private final BlogRepository blogRepository;
+
+	private final NewsRepository newsRepository;
+
 	@Value("${file.upload.image-path}")
 	private String uploadDirectory;
 
-	public MediaFileServiceImpl(MediaFileRepository mediaFileRepository) {
+	public MediaFileServiceImpl(MediaFileRepository mediaFileRepository, BlogRepository blogRepository,
+			NewsRepository newsRepository) {
 		this.mediaFileRepository = mediaFileRepository;
+		this.blogRepository = blogRepository;
+		this.newsRepository = newsRepository;
 	}
 
 	@Override
@@ -136,15 +145,38 @@ public class MediaFileServiceImpl implements MediaFileService {
 	public ApiResponse deleteMediaFile(Long id) {
 
 		try {
+
 			MediaFile mediaFile = mediaFileRepository.findById(id).orElseThrow(
 					() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Media file not found: " + id));
 
-			Path path = Paths.get(mediaFile.getFilePath()).toAbsolutePath().normalize();
+			boolean mappedToBlog = blogRepository.existsByMediaFiles_MediaId(id);
+
+			boolean mappedToNews = newsRepository.existsByMediaFiles_MediaId(id);
+
+			if (mappedToBlog && mappedToNews) {
+
+				throw new ResponseStatusException(HttpStatus.CONFLICT,
+						"Cannot delete media file. It is mapped to Blog and News records.");
+
+			} else if (mappedToBlog) {
+
+				throw new ResponseStatusException(HttpStatus.CONFLICT,
+						"Cannot delete media file. It is mapped to a Blog record.");
+
+			} else if (mappedToNews) {
+
+				throw new ResponseStatusException(HttpStatus.CONFLICT,
+						"Cannot delete media file. It is mapped to a News record.");
+			}
 
 			Path uploadPath = Paths.get(uploadDirectory).toAbsolutePath().normalize();
 
-			// Prevent deleting a file outside the upload directory
-			if (!path.startsWith(uploadPath)) {
+			Path storedPath = Paths.get(mediaFile.getFilePath());
+
+			Path path = storedPath.isAbsolute() ? storedPath.toAbsolutePath().normalize()
+					: uploadPath.resolve(storedPath).normalize();
+
+			if (!path.startsWith(uploadPath) || path.equals(uploadPath)) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid stored file path");
 			}
 
@@ -155,81 +187,75 @@ public class MediaFileServiceImpl implements MediaFileService {
 			return new ApiResponse("Media file deleted successfully", null, HttpStatus.OK.value());
 
 		} catch (ResponseStatusException e) {
+
 			throw e;
 
 		} catch (IOException e) {
-			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete physical file");
+
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete physical file", e);
 
 		} catch (Exception e) {
-			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete media file");
+
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete media file", e);
 		}
 	}
 
 	@Override
 	public ResponseEntity<byte[]> getImageById(Long id) {
 
-	    // Find media record by ID
-	    MediaFile mediaFile = mediaFileRepository.findById(id)
-	            .orElseThrow(() -> new ResponseStatusException(
-	                    HttpStatus.NOT_FOUND,
-	                    "Image not found with ID: " + id));
+		// Find media record by ID
+		MediaFile mediaFile = mediaFileRepository.findById(id)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Image not found with ID: " + id));
 
-	    // Get saved file path from database
-	    String filePath = mediaFile.getFilePath();
+		// Get saved file path from database
+		String filePath = mediaFile.getFilePath();
 
-	    if (filePath == null || filePath.isBlank()) {
-	        throw new ResponseStatusException(
-	                HttpStatus.NOT_FOUND, "Image file path not found");
-	    }
+		if (filePath == null || filePath.isBlank()) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Image file path not found");
+		}
 
-	    Path path = Paths.get(filePath).toAbsolutePath().normalize();
+		Path path = Paths.get(filePath).toAbsolutePath().normalize();
 
-	    // Check whether file exists
-	    if (!Files.exists(path) || !Files.isRegularFile(path)) {
-	        throw new ResponseStatusException(
-	                HttpStatus.NOT_FOUND, "Image file does not exist on disk");
-	    }
+		// Check whether file exists
+		if (!Files.exists(path) || !Files.isRegularFile(path)) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Image file does not exist on disk");
+		}
 
-	    try {
-	        // Read image as byte array
-	        byte[] imageBytes = Files.readAllBytes(path);
+		try {
+			// Read image as byte array
+			byte[] imageBytes = Files.readAllBytes(path);
 
-	        // Get image content type
-	        MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
+			// Get image content type
+			MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
 
-	        String contentType = mediaFile.getContentType();
+			String contentType = mediaFile.getContentType();
 
-	        if (contentType != null && !contentType.isBlank()) {
-	            try {
-	                mediaType = MediaType.parseMediaType(contentType);
-	            } catch (IllegalArgumentException e) {
-	                mediaType = MediaType.APPLICATION_OCTET_STREAM;
-	            }
-	        } else {
-	            String detectedType = Files.probeContentType(path);
+			if (contentType != null && !contentType.isBlank()) {
+				try {
+					mediaType = MediaType.parseMediaType(contentType);
+				} catch (IllegalArgumentException e) {
+					mediaType = MediaType.APPLICATION_OCTET_STREAM;
+				}
+			} else {
+				String detectedType = Files.probeContentType(path);
 
-	            if (detectedType != null) {
-	                try {
-	                    mediaType = MediaType.parseMediaType(detectedType);
-	                } catch (IllegalArgumentException e) {
-	                    mediaType = MediaType.APPLICATION_OCTET_STREAM;
-	                }
-	            }
-	        }
+				if (detectedType != null) {
+					try {
+						mediaType = MediaType.parseMediaType(detectedType);
+					} catch (IllegalArgumentException e) {
+						mediaType = MediaType.APPLICATION_OCTET_STREAM;
+					}
+				}
+			}
 
-	        // Return image bytes
-	        return ResponseEntity.ok()
-	                .contentType(mediaType)
-	                .header(
-	                        HttpHeaders.CONTENT_DISPOSITION,
-	                        "inline; filename=\"" + path.getFileName() + "\"")
-	                .body(imageBytes);
+			// Return image bytes
+			return ResponseEntity.ok().contentType(mediaType)
+					.header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + path.getFileName() + "\"")
+					.body(imageBytes);
 
-	    } catch (IOException e) {
-	        throw new ResponseStatusException(
-	                HttpStatus.INTERNAL_SERVER_ERROR,
-	                "Failed to read image file");
-	    }
+		} catch (IOException e) {
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read image file");
+		}
 	}
 
 	private MediaFileResponse convertToResponse(MediaFile mediaFile) {
@@ -261,7 +287,7 @@ public class MediaFileServiceImpl implements MediaFileService {
 			try {
 				Files.deleteIfExists(path);
 			} catch (IOException ignored) {
-				// Keep the original exception
+				// Keep the exceptionoriginal 
 			}
 		}
 	}

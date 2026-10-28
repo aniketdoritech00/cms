@@ -24,4 +24,6 @@ public interface EmployeeService {
 	ApiResponse updateEmployee(Long id, EmployeeRequest request, MultipartFile profilePicture);
 
 	ApiResponse changePassword(String currentPassword, String newPassword);
+
+	ApiResponse getCurrentEmployee();
 }

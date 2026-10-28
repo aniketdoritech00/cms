@@ -32,13 +32,13 @@ public class PublicNewsBlogController {
 	@GetMapping("/getAllBlogsWithPagination")
 	public ApiResponse getAllBlogsWithPagination(@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "10") int size) {
-		return blogService.getAllBlogsWithPagination(page, size);
+		return blogService.getAllBlogsWithPaginationWithStatus(page, size);
 	}
 
 	@GetMapping("/getAllNewsWithPagination")
 	public ApiResponse getAllNewsWithPagination(@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "10") int size) {
-		return newsService.getAllNewsWithPagination(page, size);
+		return newsService.getAllNewsWithPaginationWithStatus(page, size);
 	}
 
 	@GetMapping("/getNewsById/{id}")

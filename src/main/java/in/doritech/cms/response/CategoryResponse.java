@@ -2,43 +2,43 @@ package in.doritech.cms.response;
 
 public class CategoryResponse {
 
-    private Long categoryId;
-    private String categoryName;
-    private String slug;
-    private String description;
+	private Long categoryId;
+	private String categoryName;
+//    private String slug;
+	private String description;
 
-    public CategoryResponse() {
-    }
+	public CategoryResponse() {
+	}
 
-    public Long getCategoryId() {
-        return categoryId;
-    }
+	public Long getCategoryId() {
+		return categoryId;
+	}
 
-    public void setCategoryId(Long categoryId) {
-        this.categoryId = categoryId;
-    }
+	public void setCategoryId(Long categoryId) {
+		this.categoryId = categoryId;
+	}
 
-    public String getCategoryName() {
-        return categoryName;
-    }
+	public String getCategoryName() {
+		return categoryName;
+	}
 
-    public void setCategoryName(String categoryName) {
-        this.categoryName = categoryName;
-    }
+	public void setCategoryName(String categoryName) {
+		this.categoryName = categoryName;
+	}
 
-    public String getSlug() {
-        return slug;
-    }
+//    public String getSlug() {
+//        return slug;
+//    }
+//
+//    public void setSlug(String slug) {
+//        this.slug = slug;
+//    }
 
-    public void setSlug(String slug) {
-        this.slug = slug;
-    }
+	public String getDescription() {
+		return description;
+	}
 
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
+	public void setDescription(String description) {
+		this.description = description;
+	}
 }

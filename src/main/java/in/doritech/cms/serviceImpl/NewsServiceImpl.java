@@ -170,6 +170,44 @@ public class NewsServiceImpl implements NewsService {
 
 	@Override
 	@Transactional(readOnly = true)
+	public ApiResponse getAllNewsWithPaginationWithStatus(int page, int size) {
+		System.out.println("Entered!");
+		try {
+			// Validate pagination values
+			if (page < 0 || size <= 0) {
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+						"Page must be 0 or greater and size must be greater than 0");
+			}
+
+			Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+			Page<News> newsPage = newsRepository.findByStatus("PUBLISHED", pageable);
+
+			List<NewsResponse> responses = newsPage.getContent().stream().map(this::convertToResponse)
+					.collect(Collectors.toList());
+
+			PageResponse<NewsResponse> pageResponse = new PageResponse<>();
+
+			pageResponse.setContent(responses);
+			pageResponse.setPageNumber(newsPage.getNumber());
+			pageResponse.setPageSize(newsPage.getSize());
+			pageResponse.setTotalElements(newsPage.getTotalElements());
+			pageResponse.setTotalPages(newsPage.getTotalPages());
+			pageResponse.setLastPage(newsPage.isLast());
+
+			return new ApiResponse("News fetched successfully", pageResponse, HttpStatus.OK.value());
+
+		} catch (ResponseStatusException e) {
+			throw e;
+		} catch (Exception e) {
+			log.error("Failed to fetch news with pagination", e);
+
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to fetch news", e);
+		}
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	public ApiResponse getNewsByStatus(String status) {
 		try {
 			if (status == null || status.trim().isEmpty()) {
@@ -370,7 +408,7 @@ public class NewsServiceImpl implements NewsService {
 
 				categoryResponse.setCategoryId(category.getCategoryId());
 				categoryResponse.setCategoryName(category.getCategoryName());
-				categoryResponse.setSlug(category.getSlug());
+//				categoryResponse.setSlug(category.getSlug());
 				categoryResponse.setDescription(category.getDescription());
 
 				categoryResponses.add(categoryResponse);

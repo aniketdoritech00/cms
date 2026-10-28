@@ -345,6 +345,42 @@ public class BlogServiceImpl implements BlogService {
 	}
 
 	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse getAllBlogsWithPaginationWithStatus(int page, int size) {
+		try {
+			if (page < 0 || size <= 0) {
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+						"Page must be 0 or greater and size must be greater than 0");
+			}
+
+			Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+			Page<Blog> blogPage = blogRepository.findByStatus("PUBLISHED", pageable);
+
+			List<BlogResponse> responses = blogPage.getContent().stream().map(this::convertToResponse)
+					.collect(Collectors.toList());
+
+			PageResponse<BlogResponse> pageResponse = new PageResponse<>();
+
+			pageResponse.setContent(responses);
+			pageResponse.setPageNumber(blogPage.getNumber());
+			pageResponse.setPageSize(blogPage.getSize());
+			pageResponse.setTotalElements(blogPage.getTotalElements());
+			pageResponse.setTotalPages(blogPage.getTotalPages());
+			pageResponse.setLastPage(blogPage.isLast());
+
+			return new ApiResponse("Blogs fetched successfully", pageResponse, HttpStatus.OK.value());
+
+		} catch (ResponseStatusException e) {
+			throw e;
+		} catch (Exception e) {
+			log.error("Failed to fetch blogs with pagination", e);
+
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to fetch blogs");
+		}
+	}
+
+	@Override
 	@Transactional
 	public ApiResponse createBlogWithImages(BlogRequest request, List<MultipartFile> images) {
 
@@ -551,29 +587,6 @@ public class BlogServiceImpl implements BlogService {
 		}
 	}
 
-	// Convert MediaFile entity to response DTO
-	private MediaFileResponse convertMediaFileToResponse(MediaFile mediaFile) {
-
-		MediaFileResponse response = new MediaFileResponse();
-
-		response.setMediaId(mediaFile.getMediaId());
-		response.setOriginalFilename(mediaFile.getOriginalFilename());
-		response.setStoredFilename(mediaFile.getStoredFilename());
-		response.setContentType(mediaFile.getContentType());
-		response.setFileSize(mediaFile.getFileSize());
-		response.setUploadedAt(mediaFile.getUploadedAt());
-
-		if (mediaFile.getUploadedBy() != null) {
-			response.setUploadedById(mediaFile.getUploadedBy().getEmployeeId());
-
-			// Change this getter if your Employee field has another name.
-			response.setUploadedByName(mediaFile.getUploadedBy().getEmployeeName());
-		}
-
-		response.setImageUrl("/uploads/blogs/" + mediaFile.getStoredFilename());
-
-		return response;
-	}
 
 	// Convert Blog entity to response DTO
 	private BlogResponse convertToResponse(Blog blog) {
@@ -634,7 +647,7 @@ public class BlogServiceImpl implements BlogService {
 
 				categoryResponse.setCategoryId(category.getCategoryId());
 				categoryResponse.setCategoryName(category.getCategoryName());
-				categoryResponse.setSlug(category.getSlug());
+//				categoryResponse.setSlug(category.getSlug());
 				categoryResponse.setDescription(category.getDescription());
 
 				categoryResponses.add(categoryResponse);

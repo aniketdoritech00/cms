@@ -162,6 +162,6 @@ public class News {
 	public void setMediaFiles(Set<MediaFile> mediaFiles) {
 		this.mediaFiles = mediaFiles;
 	}
-
+	
 
 }

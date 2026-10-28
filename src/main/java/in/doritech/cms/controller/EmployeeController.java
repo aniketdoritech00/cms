@@ -51,6 +51,12 @@ public class EmployeeController {
 	public ApiResponse getEmployeeById(@PathVariable Long id) {
 		return employeeService.getEmployeeById(id);
 	}
+	
+	@GetMapping("/getCurrentEmployee")
+	public ApiResponse getCurrentEmployee() {
+		System.out.println("Entered!" );
+		return employeeService.getCurrentEmployee();
+	}
 
 	@GetMapping("/getAllEmployees")
 	public ApiResponse getAllEmployees() {

@@ -28,4 +28,6 @@ public interface BlogService {
 	ApiResponse updateBlogWithImages(Long id, BlogRequest request, List<MultipartFile> images);
 
 	ApiResponse publishBlogs(List<Long> ids);
+
+	ApiResponse getAllBlogsWithPaginationWithStatus(int page, int size);
 }

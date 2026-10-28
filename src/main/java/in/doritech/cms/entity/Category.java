@@ -18,8 +18,8 @@ public class Category {
 	@Column(nullable = false, unique = true)
 	private String categoryName;
 
-	@Column(nullable = false, unique = true)
-	private String slug;
+//	@Column(nullable = false, unique = true)
+//	private String slug;
 
 	private String description;
 
@@ -42,13 +42,13 @@ public class Category {
 		this.categoryName = categoryName;
 	}
 
-	public String getSlug() {
-		return slug;
-	}
-
-	public void setSlug(String slug) {
-		this.slug = slug;
-	}
+//	public String getSlug() {
+//		return slug;
+//	}
+//
+//	public void setSlug(String slug) {
+//		this.slug = slug;
+//	}
 
 	public String getDescription() {
 		return description;

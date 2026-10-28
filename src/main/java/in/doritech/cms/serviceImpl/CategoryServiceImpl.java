@@ -41,7 +41,7 @@ public class CategoryServiceImpl implements CategoryService {
 
 			Category category = new Category();
 			category.setCategoryName(request.getCategoryName().trim());
-			category.setSlug(request.getSlug().trim());
+//			category.setSlug(request.getSlug().trim());
 			category.setDescription(request.getDescription());
 
 			Category saved = categoryRepository.save(category);
@@ -98,7 +98,7 @@ public class CategoryServiceImpl implements CategoryService {
 					.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found: " + id));
 
 			category.setCategoryName(request.getCategoryName().trim());
-			category.setSlug(request.getSlug().trim());
+//			category.setSlug(request.getSlug().trim());
 			category.setDescription(request.getDescription());
 
 			Category updated = categoryRepository.save(category);
@@ -148,9 +148,9 @@ public class CategoryServiceImpl implements CategoryService {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category name must not exceed 100 characters");
 		}
 
-		if (request.getSlug() == null || request.getSlug().trim().isEmpty()) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category slug is required");
-		}
+//		if (request.getSlug() == null || request.getSlug().trim().isEmpty()) {
+//			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category slug is required");
+//		}
 	}
 
 	private CategoryResponse convertToResponse(Category category) {
@@ -158,7 +158,7 @@ public class CategoryServiceImpl implements CategoryService {
 
 		response.setCategoryId(category.getCategoryId());
 		response.setCategoryName(category.getCategoryName());
-		response.setSlug(category.getSlug());
+//		response.setSlug(category.getSlug());
 		response.setDescription(category.getDescription());
 
 		return response;

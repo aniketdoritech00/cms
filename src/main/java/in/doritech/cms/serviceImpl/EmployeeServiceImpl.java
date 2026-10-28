@@ -133,6 +133,27 @@ public class EmployeeServiceImpl implements EmployeeService {
 	}
 
 	@Override
+	public ApiResponse getCurrentEmployee() {
+
+		try {
+			Long currentUserEmployeeId = CurrentUserService.getCurrentUserId();
+			if (currentUserEmployeeId == null) {
+				return new ApiResponse("Current employee id not found", null, HttpStatus.BAD_REQUEST.value());
+			}
+			Employee employee = employeeRepository.findById(currentUserEmployeeId)
+					.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+							"Employee not found: " + currentUserEmployeeId));
+
+			return new ApiResponse("Employee fetched successfully", convertToResponse(employee), HttpStatus.OK.value());
+
+		} catch (ResponseStatusException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to fetch employee");
+		}
+	}
+
+	@Override
 	public ApiResponse getAllEmployees() {
 		try {
 			List<EmployeeResponse> responses = new ArrayList<>();

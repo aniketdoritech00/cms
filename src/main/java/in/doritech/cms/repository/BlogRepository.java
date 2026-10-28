@@ -22,4 +22,6 @@ public interface BlogRepository extends JpaRepository<Blog, Long> {
 	List<Blog> findByAuthor_EmployeeId(Long employeeId);
 
 	Page<Blog> findByStatus(String string, Pageable pageable);
+
+	boolean existsByMediaFiles_MediaId(Long id);
 }
