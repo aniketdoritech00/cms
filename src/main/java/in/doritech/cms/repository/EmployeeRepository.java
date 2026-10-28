@@ -19,4 +19,6 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 	boolean existsByEmployeeCode(String employeeCode);
 
 	boolean existsByEmployeeCodeAndEmployeeIdNot(String employeeCode, Long id);
+
+	boolean existsByProfilePicture_MediaId(Long oldMediaId);
 }

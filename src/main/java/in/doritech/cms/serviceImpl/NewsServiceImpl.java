@@ -1,6 +1,7 @@
 package in.doritech.cms.serviceImpl;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -522,31 +523,21 @@ public class NewsServiceImpl implements NewsService {
 	public ApiResponse updateNewsWithImages(Long id, NewsRequest request, List<MultipartFile> images) {
 
 		try {
-
 			validateRequest(request);
 
 			// Find existing news
 			News news = newsRepository.findById(id).orElseThrow(
 					() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "News not found with id: " + id));
 
-//			String slug = request.getSlug().trim();
-//
-//			// Check duplicate slug
-//			if (newsRepository.existsBySlug(slug) && !slug.equals(news.getSlug())) {
-//
-//				throw new ResponseStatusException(HttpStatus.CONFLICT, "News slug already exists: " + slug);
-//			}
-
 			// Update news fields
 			news.setTitle(request.getTitle().trim());
-//			news.setSlug(slug);
 			news.setSummary(request.getSummary());
 			news.setContent(request.getContent());
 
 			// Update categories
 			news.setCategories(resolveCategories(request.getCategoryIds()));
 
-			// Add new images if provided
+			// Replace images only when new images are provided
 			if (images != null && !images.isEmpty()) {
 
 				Long currentUserId = CurrentUserService.getCurrentUserId();
@@ -557,41 +548,75 @@ public class NewsServiceImpl implements NewsService {
 
 				Employee employee = employeeRepository.getReferenceById(currentUserId);
 
-				Set<MediaFile> mediaFiles = news.getMediaFiles();
+				// Keep the old images before changing the mapping
+				Set<MediaFile> oldMediaFiles = new HashSet<>();
 
-				if (mediaFiles == null) {
-					mediaFiles = new HashSet<>();
+				if (news.getMediaFiles() != null) {
+					oldMediaFiles.addAll(news.getMediaFiles());
 				}
+
+				// Create a new collection for the new images
+				Set<MediaFile> newMediaFiles = new HashSet<>();
 
 				for (MultipartFile image : images) {
-
 					MediaFile savedMedia = saveMediaFile(image, employee);
-
-					mediaFiles.add(savedMedia);
+					newMediaFiles.add(savedMedia);
 				}
 
-				news.setMediaFiles(mediaFiles);
+				// Replace the old image mapping
+				news.setMediaFiles(newMediaFiles);
+
+				// Save the updated news and mapping
+				News updatedNews = newsRepository.saveAndFlush(news);
+
+				// Delete old images that are no longer referenced by news
+				for (MediaFile oldMedia : oldMediaFiles) {
+
+					Long oldMediaId = oldMedia.getMediaId();
+
+					boolean stillUsedByNews = newsRepository.existsByMediaFiles_MediaId(oldMediaId);
+
+					if (!stillUsedByNews) {
+
+						// Delete the physical image file
+						try {
+							String filePath = oldMedia.getFilePath();
+
+							if (filePath != null && !filePath.trim().isEmpty()) {
+								Files.deleteIfExists(Paths.get(filePath));
+							}
+
+						} catch (IOException e) {
+							// Do not hide the successful database update
+							log.error("Failed to delete old image file: {}", oldMedia.getFilePath(), e);
+						}
+
+						// Delete the old media_files database record
+						mediaFileRepository.deleteById(oldMediaId);
+					}
+				}
+
+				// Return updated response
+				NewsResponse newsResponse = convertToResponse(updatedNews);
+
+				return new ApiResponse("News updated successfully", newsResponse, HttpStatus.OK.value());
 			}
 
-			// Save updated news
+			// If no new images are provided, keep existing images
 			News updatedNews = newsRepository.save(news);
 
-			// Convert entity to response
 			NewsResponse newsResponse = convertToResponse(updatedNews);
 
 			return new ApiResponse("News updated successfully", newsResponse, HttpStatus.OK.value());
 
 		} catch (ResponseStatusException e) {
-
 			throw e;
 
 		} catch (DataIntegrityViolationException e) {
-
 			throw new ResponseStatusException(HttpStatus.CONFLICT,
 					"News slug or associated data conflicts with existing records");
 
 		} catch (Exception e) {
-
 			log.error("Failed to update news with id: " + id, e);
 
 			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update news");
@@ -601,7 +626,6 @@ public class NewsServiceImpl implements NewsService {
 	private MediaFile saveMediaFile(MultipartFile file, Employee employee) {
 
 		try {
-
 			if (file == null || file.isEmpty()) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image file cannot be empty");
 			}
@@ -632,19 +656,21 @@ public class NewsServiceImpl implements NewsService {
 			}
 
 			// Create upload directory
-			Path uploadDirectory = Paths.get("uploads", "news");
+			Path uploadDirectory = Paths.get("uploads", "news").toAbsolutePath().normalize();
 
 			Files.createDirectories(uploadDirectory);
 
-			// Save image on disk
+			// Build destination path
 			Path destination = uploadDirectory.resolve(storedFilename).normalize();
 
-			if (!destination.startsWith(uploadDirectory.toAbsolutePath().normalize()) && destination.isAbsolute()) {
-
+			if (!destination.startsWith(uploadDirectory)) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid image path");
 			}
 
-			Files.copy(file.getInputStream(), destination, StandardCopyOption.REPLACE_EXISTING);
+			// Save image on disk
+			try (InputStream inputStream = file.getInputStream()) {
+				Files.copy(inputStream, destination, StandardCopyOption.REPLACE_EXISTING);
+			}
 
 			// Create MediaFile entity
 			MediaFile mediaFile = new MediaFile();
@@ -657,12 +683,11 @@ public class NewsServiceImpl implements NewsService {
 			mediaFile.setUploadedAt(LocalDateTime.now());
 			mediaFile.setUploadedBy(employee);
 
-			// Save MediaFile and generate mediaId
+			// Save media record
 			return mediaFileRepository.save(mediaFile);
 
 		} catch (IOException e) {
-
-			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to store image");
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to store image", e);
 		}
 	}
 
