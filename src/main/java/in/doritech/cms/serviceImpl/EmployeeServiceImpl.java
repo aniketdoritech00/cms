@@ -14,6 +14,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -44,6 +45,9 @@ import in.doritech.cms.util.ApiResponse;
 
 @Service
 public class EmployeeServiceImpl implements EmployeeService {
+
+	@Value("${file.upload.image-path}")
+	private String imageUploadPath;
 
 	private final EmployeeRepository employeeRepository;
 	private final DepartmentRepository departmentRepository;
@@ -404,8 +408,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 	public ApiResponse updateEmployee(Long id, EmployeeRequest request, MultipartFile profilePicture) {
 
 		try {
-
-			// Validate employee request
+			// 1. Validate employee request
 			if (request == null || request.getEmployeeCode() == null || request.getEmployeeCode().trim().isEmpty()
 					|| request.getEmployeeName() == null || request.getEmployeeName().trim().isEmpty()
 					|| request.getEmail() == null || request.getEmail().trim().isEmpty()
@@ -416,38 +419,39 @@ public class EmployeeServiceImpl implements EmployeeService {
 						"Employee code, name, email, department and roles are required");
 			}
 
-			// Find existing employee
+			// 2. Find existing employee
 			Employee employee = employeeRepository.findById(id).orElseThrow(
 					() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found with id: " + id));
 
+			// 3. Get employee code and email
 			String employeeCode = request.getEmployeeCode().trim();
 			String email = request.getEmail().trim();
 
-			// Check duplicate employee code
+			// 4. Check duplicate employee code
 			if (employeeRepository.existsByEmployeeCodeAndEmployeeIdNot(employeeCode, id)) {
 
 				throw new ResponseStatusException(HttpStatus.CONFLICT, "Employee code already exists");
 			}
 
-			// Check duplicate email
+			// 5. Check duplicate email
 			if (employeeRepository.findByEmail(email).filter(existing -> !existing.getEmployeeId().equals(id))
 					.isPresent()) {
 
 				throw new ResponseStatusException(HttpStatus.CONFLICT, "Employee email already exists");
 			}
 
-			// Find department
+			// 6. Find department
 			Department department = departmentRepository.findById(request.getDepartmentId())
 					.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Department not found"));
 
-			// Find roles
+			// 7. Find roles
 			Set<Role> roles = new HashSet<>(roleRepository.findAllById(request.getRoleIds()));
 
 			if (roles.size() != request.getRoleIds().size()) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "One or more role IDs are invalid");
 			}
 
-			// Update employee details
+			// 8. Update employee details
 			employee.setEmployeeCode(employeeCode);
 			employee.setEmployeeName(request.getEmployeeName().trim());
 			employee.setEmail(email);
@@ -455,7 +459,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 			employee.setDepartment(department);
 			employee.setRoles(roles);
 
-			// Update password only when a new password is provided
+			// 9. Update password only when provided
 			if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
 
 				if (request.getPassword().length() < 4) {
@@ -466,7 +470,10 @@ public class EmployeeServiceImpl implements EmployeeService {
 				employee.setPasswordHash(passwordEncoder.encode(request.getPassword()));
 			}
 
-			// Update profile picture only when a new one is provided
+			// 10. Keep reference to the old profile picture
+			MediaFile oldMedia = employee.getProfilePicture();
+
+			// 11. Upload and assign the new profile picture
 			if (profilePicture != null && !profilePicture.isEmpty()) {
 
 				MediaFile savedMedia = saveEmployeeProfilePicture(profilePicture, employee);
@@ -474,23 +481,49 @@ public class EmployeeServiceImpl implements EmployeeService {
 				employee.setProfilePicture(savedMedia);
 			}
 
-			// Save updated employee
-			Employee updatedEmployee = employeeRepository.save(employee);
+			// 12. Save employee with the new profile picture
+			Employee updatedEmployee = employeeRepository.saveAndFlush(employee);
 
+			// 13. Delete old picture when a replacement was uploaded
+			if (profilePicture != null && !profilePicture.isEmpty() && oldMedia != null
+					&& updatedEmployee.getProfilePicture() != null
+					&& !oldMedia.getMediaId().equals(updatedEmployee.getProfilePicture().getMediaId())) {
+
+				Long oldMediaId = oldMedia.getMediaId();
+
+				// Check whether another employee references the old picture
+				boolean stillUsed = employeeRepository.existsByProfilePicture_MediaId(oldMediaId);
+
+				if (!stillUsed) {
+					try {
+						// Delete the old physical image
+						Path oldFilePath = Paths.get(oldMedia.getFilePath());
+
+						Files.deleteIfExists(oldFilePath);
+
+						// Delete old database record
+						mediaFileRepository.delete(oldMedia);
+						mediaFileRepository.flush();
+
+					} catch (IOException e) {
+						throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+								"Failed to delete old profile picture file", e);
+					}
+				}
+			}
+
+			// 14. Return success response
 			return new ApiResponse("Employee updated successfully", convertToResponse(updatedEmployee),
 					HttpStatus.OK.value());
 
 		} catch (ResponseStatusException e) {
-
 			throw e;
 
 		} catch (DataIntegrityViolationException e) {
-
-			throw new ResponseStatusException(HttpStatus.CONFLICT, "Employee code or email may already exist");
+			throw new ResponseStatusException(HttpStatus.CONFLICT, "Employee code or email may already exist", e);
 
 		} catch (Exception e) {
-
-			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update employee");
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update employee", e);
 		}
 	}
 
@@ -501,6 +534,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Profile picture cannot be empty");
 			}
 
+			// Maximum profile picture size: 5 MB
 			if (file.getSize() > 5 * 1024 * 1024) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Profile picture must not exceed 5 MB");
 			}
@@ -518,13 +552,16 @@ public class EmployeeServiceImpl implements EmployeeService {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image filename is required");
 			}
 
-			int dotIndex = originalFilename.lastIndexOf('.');
+			// Extract and validate the extension
+			String safeFilename = Paths.get(originalFilename).getFileName().toString();
+
+			int dotIndex = safeFilename.lastIndexOf('.');
 
 			if (dotIndex < 0) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image file extension is required");
 			}
 
-			String extension = originalFilename.substring(dotIndex).toLowerCase(Locale.ROOT);
+			String extension = safeFilename.substring(dotIndex).toLowerCase(Locale.ROOT);
 
 			if (!Set.of(".jpg", ".jpeg", ".png", ".webp").contains(extension)) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -533,22 +570,27 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 			String storedFilename = UUID.randomUUID() + extension;
 
-			Path uploadDirectory = Paths.get("uploads", "employees").toAbsolutePath().normalize();
+			// Read the folder from application.properties
+			Path uploadDirectory = Paths.get(imageUploadPath).toAbsolutePath().normalize();
 
+			// Create the common folder if it does not exist
 			Files.createDirectories(uploadDirectory);
 
+			// Build the destination path
 			Path destination = uploadDirectory.resolve(storedFilename).normalize();
 
 			if (!destination.startsWith(uploadDirectory)) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid image path");
 			}
 
+			// Save the image to D:/CMS-DEV/IMAGES
 			try (InputStream inputStream = file.getInputStream()) {
 				Files.copy(inputStream, destination);
 			}
 
+			// Save image information in the database
 			MediaFile mediaFile = new MediaFile();
-			mediaFile.setOriginalFilename(originalFilename);
+			mediaFile.setOriginalFilename(safeFilename);
 			mediaFile.setStoredFilename(storedFilename);
 			mediaFile.setFilePath(destination.toString());
 			mediaFile.setContentType(contentType);
@@ -559,7 +601,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 			return mediaFileRepository.save(mediaFile);
 
 		} catch (IOException e) {
-			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to store profile picture");
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to store profile picture", e);
 		}
 	}
 
