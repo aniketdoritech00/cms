@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -21,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import in.doritech.cms.entity.MediaFile;
 import in.doritech.cms.repository.BlogRepository;
+import in.doritech.cms.repository.EmployeeRepository;
 import in.doritech.cms.repository.MediaFileRepository;
 import in.doritech.cms.repository.NewsRepository;
 import in.doritech.cms.response.MediaFileResponse;
@@ -36,14 +38,17 @@ public class MediaFileServiceImpl implements MediaFileService {
 
 	private final NewsRepository newsRepository;
 
+	private final EmployeeRepository employeeRepository;
+
 	@Value("${file.upload.image-path}")
 	private String uploadDirectory;
 
 	public MediaFileServiceImpl(MediaFileRepository mediaFileRepository, BlogRepository blogRepository,
-			NewsRepository newsRepository) {
+			NewsRepository newsRepository, EmployeeRepository employeeRepository) {
 		this.mediaFileRepository = mediaFileRepository;
 		this.blogRepository = blogRepository;
 		this.newsRepository = newsRepository;
+		this.employeeRepository = employeeRepository;
 	}
 
 	@Override
@@ -145,18 +150,44 @@ public class MediaFileServiceImpl implements MediaFileService {
 	public ApiResponse deleteMediaFile(Long id) {
 
 		try {
-
+			// 1. Find media file
 			MediaFile mediaFile = mediaFileRepository.findById(id).orElseThrow(
 					() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Media file not found: " + id));
 
+			// 2. Check employee mapping
+			boolean mappedToEmployee = employeeRepository.existsByProfilePicture_MediaId(id);
+
+			// 3. Check Blog mapping
 			boolean mappedToBlog = blogRepository.existsByMediaFiles_MediaId(id);
 
+			// 4. Check News mapping
 			boolean mappedToNews = newsRepository.existsByMediaFiles_MediaId(id);
 
-			if (mappedToBlog && mappedToNews) {
+			// 5. Prevent deletion if mapped anywhere
+			if (mappedToEmployee && mappedToBlog && mappedToNews) {
+
+				throw new ResponseStatusException(HttpStatus.CONFLICT,
+						"Cannot delete media file. It is mapped to Employee, Blog and News records.");
+
+			} else if (mappedToEmployee && mappedToBlog) {
+
+				throw new ResponseStatusException(HttpStatus.CONFLICT,
+						"Cannot delete media file. It is mapped to Employee and Blog records.");
+
+			} else if (mappedToEmployee && mappedToNews) {
+
+				throw new ResponseStatusException(HttpStatus.CONFLICT,
+						"Cannot delete media file. It is mapped to Employee and News records.");
+
+			} else if (mappedToBlog && mappedToNews) {
 
 				throw new ResponseStatusException(HttpStatus.CONFLICT,
 						"Cannot delete media file. It is mapped to Blog and News records.");
+
+			} else if (mappedToEmployee) {
+
+				throw new ResponseStatusException(HttpStatus.CONFLICT,
+						"Cannot delete media file. It is mapped to an Employee profile picture. Please remove or replace the employee profile picture first.");
 
 			} else if (mappedToBlog) {
 
@@ -183,12 +214,17 @@ public class MediaFileServiceImpl implements MediaFileService {
 			Files.deleteIfExists(path);
 
 			mediaFileRepository.delete(mediaFile);
+			mediaFileRepository.flush();
 
 			return new ApiResponse("Media file deleted successfully", null, HttpStatus.OK.value());
 
 		} catch (ResponseStatusException e) {
-
 			throw e;
+
+		} catch (DataIntegrityViolationException e) {
+
+			throw new ResponseStatusException(HttpStatus.CONFLICT,
+					"Cannot delete media file because it is still referenced by another record.", e);
 
 		} catch (IOException e) {
 
@@ -287,7 +323,7 @@ public class MediaFileServiceImpl implements MediaFileService {
 			try {
 				Files.deleteIfExists(path);
 			} catch (IOException ignored) {
-				// Keep the exceptionoriginal 
+				// Keep the exceptionoriginal
 			}
 		}
 	}

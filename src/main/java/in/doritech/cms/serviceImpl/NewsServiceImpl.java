@@ -24,6 +24,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -86,7 +88,6 @@ public class NewsServiceImpl implements NewsService {
 			news.setStatus("DRAFT");
 			news.setAuthor(author);
 			news.setCategories(resolveCategories(request.getCategoryIds()));
-			news.setMediaFiles(resolveMediaFiles(request.getMediaIds()));
 
 			News saved = newsRepository.save(news);
 
@@ -247,7 +248,6 @@ public class NewsServiceImpl implements NewsService {
 			news.setContent(request.getContent());
 
 			news.setCategories(resolveCategories(request.getCategoryIds()));
-			news.setMediaFiles(resolveMediaFiles(request.getMediaIds()));
 
 			News updated = newsRepository.save(news);
 
@@ -264,11 +264,44 @@ public class NewsServiceImpl implements NewsService {
 	}
 
 	@Override
+	@Transactional
 	public ApiResponse deleteNews(Long id) {
 		try {
 			News news = findNewsById(id);
 
+			Set<MediaFile> mediaFiles = new HashSet<>(news.getMediaFiles());
+
+			news.getMediaFiles().clear();
+			news.getCategories().clear();
+
+			newsRepository.saveAndFlush(news);
+
 			newsRepository.delete(news);
+			newsRepository.flush();
+
+			for (MediaFile media : mediaFiles) {
+
+				Long mediaId = media.getMediaId();
+
+				if (newsRepository.countNewsUsingMedia(mediaId) == 0) {
+
+					String filePath = media.getFilePath();
+
+					mediaFileRepository.delete(media);
+					mediaFileRepository.flush();
+
+					TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+						@Override
+						public void afterCommit() {
+							try {
+								Files.deleteIfExists(Paths.get(filePath));
+							} catch (IOException e) {
+								log.error("Failed to delete media file: {}", filePath, e);
+							}
+						}
+					});
+				}
+			}
 
 			return new ApiResponse("News deleted successfully", null, HttpStatus.OK.value());
 

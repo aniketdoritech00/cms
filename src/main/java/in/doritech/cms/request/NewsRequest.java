@@ -22,8 +22,6 @@ public class NewsRequest {
 
 	private Set<Long> categoryIds;
 
-	private Set<Long> mediaIds;
-
 	public NewsRequest() {
 	}
 
@@ -67,11 +65,4 @@ public class NewsRequest {
 		this.categoryIds = categoryIds;
 	}
 
-	public Set<Long> getMediaIds() {
-		return mediaIds;
-	}
-
-	public void setMediaIds(Set<Long> mediaIds) {
-		this.mediaIds = mediaIds;
-	}
 }
