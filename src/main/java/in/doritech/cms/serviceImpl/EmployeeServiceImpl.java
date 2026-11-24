@@ -232,21 +232,29 @@ public class EmployeeServiceImpl implements EmployeeService {
 	}
 
 	@Override
+	@Transactional
 	public ApiResponse deleteEmployee(Long id) {
 		try {
 			Employee employee = employeeRepository.findById(id)
 					.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found: " + id));
 
-			employeeRepository.delete(employee);
+			if ("INACTIVE".equalsIgnoreCase(employee.getStatus())) {
+				throw new ResponseStatusException(HttpStatus.CONFLICT, "Employee is already inactive");
+			}
 
-			return new ApiResponse("Employee deleted successfully", null, HttpStatus.OK.value());
+			employee.setStatus("INACTIVE");
+			employee.setUpdatedAt(LocalDateTime.now());
+
+			employeeRepository.save(employee);
+
+			return new ApiResponse("Employee deactivated successfully", null, HttpStatus.OK.value());
 
 		} catch (ResponseStatusException e) {
 			throw e;
-		} catch (DataIntegrityViolationException e) {
-			throw new ResponseStatusException(HttpStatus.CONFLICT, "Employee is referenced by other records");
+
 		} catch (Exception e) {
-			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete employee");
+
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to deactivate employee");
 		}
 	}
 

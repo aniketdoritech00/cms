@@ -24,6 +24,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -89,8 +91,6 @@ public class BlogServiceImpl implements BlogService {
 			blog.setAuthor(author);
 
 			blog.setCategories(resolveCategories(request.getCategoryIds()));
-
-			blog.setMediaFiles(resolveMediaFiles(request.getMediaIds()));
 
 			Blog saved = blogRepository.save(blog);
 
@@ -190,8 +190,6 @@ public class BlogServiceImpl implements BlogService {
 
 			blog.setCategories(resolveCategories(request.getCategoryIds()));
 
-			blog.setMediaFiles(resolveMediaFiles(request.getMediaIds()));
-
 			Blog updated = blogRepository.save(blog);
 
 			return new ApiResponse("Blog updated successfully", convertToResponse(updated), HttpStatus.OK.value());
@@ -211,20 +209,62 @@ public class BlogServiceImpl implements BlogService {
 	}
 
 	@Override
+	@Transactional
 	public ApiResponse deleteBlog(Long id) {
 		try {
 			Blog blog = findBlogById(id);
 
+			// Store associated media before clearing mappings
+			Set<MediaFile> mediaFiles = new HashSet<>(blog.getMediaFiles());
+
+			// Remove blog-category and blog-media mappings
+			blog.getMediaFiles().clear();
+			blog.getCategories().clear();
+
+			blogRepository.saveAndFlush(blog);
+
+			// Delete blog
 			blogRepository.delete(blog);
+			blogRepository.flush();
+
+			// Clean up unused media
+			for (MediaFile media : mediaFiles) {
+
+				Long mediaId = media.getMediaId();
+
+				// Check if another blog is using this media
+				if (blogRepository.countBlogsUsingMedia(mediaId) == 0) {
+
+					String filePath = media.getFilePath();
+
+					// Delete media database record
+					mediaFileRepository.delete(media);
+					mediaFileRepository.flush();
+
+					// Delete physical file after successful DB commit
+					TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+						@Override
+						public void afterCommit() {
+							try {
+								Files.deleteIfExists(Paths.get(filePath));
+							} catch (IOException e) {
+								log.error("Failed to delete media file for blog cleanup: {}", filePath, e);
+							}
+						}
+					});
+				}
+			}
 
 			return new ApiResponse("Blog deleted successfully", null, HttpStatus.OK.value());
 
 		} catch (ResponseStatusException e) {
 			throw e;
+
 		} catch (DataIntegrityViolationException e) {
 			log.error("Database constraint violation deleting blog ID: {}", id, e);
 
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "Blog is referenced by other records");
+
 		} catch (Exception e) {
 			log.error("Failed to delete blog ID: {}", id, e);
 

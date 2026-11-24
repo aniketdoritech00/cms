@@ -116,10 +116,35 @@ public class CategoryServiceImpl implements CategoryService {
 	}
 
 	@Override
+	@Transactional
 	public ApiResponse deleteCategory(Long id) {
 		try {
 			Category category = categoryRepository.findById(id)
 					.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found: " + id));
+
+			Long newsCount = categoryRepository.countNewsMappings(id);
+
+			Long blogCount = categoryRepository.countBlogMappings(id);
+
+			if (newsCount > 0 || blogCount > 0) {
+
+				String message;
+
+				if (newsCount > 0 && blogCount > 0) {
+					message = "Category is mapped with " + newsCount + " news article(s) and " + blogCount
+							+ " blog(s). " + "Please remove the category mappings " + "before deleting this category.";
+
+				} else if (newsCount > 0) {
+					message = "Category is mapped with " + newsCount + " news article(s). "
+							+ "Please remove the category mappings " + "before deleting this category.";
+
+				} else {
+					message = "Category is mapped with " + blogCount + " blog(s). "
+							+ "Please remove the category mappings " + "before deleting this category.";
+				}
+
+				throw new ResponseStatusException(HttpStatus.CONFLICT, message);
+			}
 
 			categoryRepository.delete(category);
 
@@ -127,10 +152,16 @@ public class CategoryServiceImpl implements CategoryService {
 
 		} catch (ResponseStatusException e) {
 			throw e;
+
 		} catch (DataIntegrityViolationException e) {
+			log.error("Database constraint violation deleting category ID: {}", id, e);
+
 			throw new ResponseStatusException(HttpStatus.CONFLICT,
 					"Category is currently in use and cannot be deleted");
+
 		} catch (Exception e) {
+			log.error("Failed to delete category ID: {}", id, e);
+
 			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete category");
 		}
 	}
